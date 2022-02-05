@@ -3,7 +3,14 @@ import { Program } from "@project-serum/anchor";
 import { SolanaTwitter } from "../target/types/solana_twitter";
 import * as assert from "assert";
 import { bs58 } from "@project-serum/anchor/dist/cjs/utils/bytes";
-import { Connection, clusterApiUrl } from "@solana/web3.js";
+import * as nacl from "tweetnacl";
+import {
+  Connection,
+  Keypair,
+  SystemProgram,
+  Transaction,
+  LAMPORTS_PER_SOL,
+} from "@solana/web3.js";
 import { sha256 } from "js-sha256";
 
 describe("solana-twitter", () => {
@@ -12,17 +19,18 @@ describe("solana-twitter", () => {
   // max account size created is capped at 10240
   // because the account is being created in anchor by
   // a CPI call which has realloc limit 10240 bytes.
-  const max_allowed_account_size = 10240;
-  const tweet_baggage_size = 248;
+  const MAX_ALLOWED_ACCOUNT_SIZE = 10 * 1024 * 1024;
+  const MAX_ALLOWED_ACCOUNT_SIZE_VIA_CPI = 10 * 1024;
+  const TWEET_BAGGAGE_SIZE = 248;
 
-  // TODO instead of sending max_allowed_tweet_body_size will
+  // TODO instead of sending MAX_ALLOWED_TWEET_BODY_SIZE will
   // calculate the tweet size dynamically and then
   // accordingly can send create account with specified
   // space
   // NOTE: we have to calculate required bytes after encoding
   // it string utf8 only.
-  const max_allowed_tweet_body_size =
-    max_allowed_account_size - tweet_baggage_size;
+  const MAX_ALLOWED_TWEET_BODY_SIZE =
+    MAX_ALLOWED_ACCOUNT_SIZE_VIA_CPI - TWEET_BAGGAGE_SIZE;
 
   const program = anchor.workspace.SolanaTwitter as Program<SolanaTwitter>;
 
@@ -32,7 +40,7 @@ describe("solana-twitter", () => {
   it("Can send a new tweet", async () => {
     const keypair = anchor.web3.Keypair.generate();
     const tx = await program.rpc.sendTweet(
-      max_allowed_tweet_body_size,
+      MAX_ALLOWED_TWEET_BODY_SIZE,
       "Bharat",
       tweetContent,
       {
@@ -64,7 +72,7 @@ describe("solana-twitter", () => {
     for (let counter = 1; counter <= 100; counter++) {
       const keypair = anchor.web3.Keypair.generate();
       const tx = await program.rpc.sendTweet(
-        max_allowed_tweet_body_size,
+        MAX_ALLOWED_TWEET_BODY_SIZE,
         "Bharat",
         "Bharat is VishwaGuru. You can't move it around!",
         {
@@ -86,7 +94,7 @@ describe("solana-twitter", () => {
   it("can send a new tweet without a topic", async () => {
     // Call the "SendTweet" instruction.
     const tweet = anchor.web3.Keypair.generate();
-    await program.rpc.sendTweet(max_allowed_tweet_body_size, "", tweetContent, {
+    await program.rpc.sendTweet(MAX_ALLOWED_TWEET_BODY_SIZE, "", tweetContent, {
       accounts: {
         tweet: tweet.publicKey,
         author: program.provider.wallet.publicKey,
@@ -121,7 +129,7 @@ describe("solana-twitter", () => {
     // Call the "SendTweet" instruction on behalf of this other user.
     const tweet = anchor.web3.Keypair.generate();
     await program.rpc.sendTweet(
-      max_allowed_tweet_body_size,
+      MAX_ALLOWED_TWEET_BODY_SIZE,
       "Bharat",
       tweetContent,
       {
@@ -152,7 +160,7 @@ describe("solana-twitter", () => {
       const tweet = anchor.web3.Keypair.generate();
       const topicWith51Chars = "B".repeat(51);
       await program.rpc.sendTweet(
-        max_allowed_tweet_body_size,
+        MAX_ALLOWED_TWEET_BODY_SIZE,
         topicWith51Chars,
         "Bharat will always be great!!!!",
         {
@@ -186,7 +194,7 @@ describe("solana-twitter", () => {
       const tweet = anchor.web3.Keypair.generate();
       const contentWith281Chars = "B".repeat(281);
       await program.rpc.sendTweet(
-        max_allowed_tweet_body_size,
+        MAX_ALLOWED_TWEET_BODY_SIZE,
         "veganism",
         contentWith281Chars,
         {
@@ -216,7 +224,7 @@ describe("solana-twitter", () => {
       const tweet = anchor.web3.Keypair.generate();
       const contentWith281Chars = "B".repeat(281);
       await program.rpc.sendTweet(
-        max_allowed_tweet_body_size,
+        MAX_ALLOWED_TWEET_BODY_SIZE,
         "veganism",
         contentWith281Chars,
         {
@@ -318,6 +326,143 @@ describe("solana-twitter", () => {
       tweetAccounts.every((tweetAccount) => {
         return tweetAccount.account.topic === "Bharat";
       })
+    );
+  });
+
+  it("Transfer 50 SOL to another account", async () => {
+    let toKeypair = Keypair.generate();
+    let transaction = new Transaction();
+
+    let account_info = await connection.getAccountInfo(toKeypair.publicKey);
+
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: program.provider.wallet.publicKey,
+        toPubkey: toKeypair.publicKey,
+        lamports: 50 * LAMPORTS_PER_SOL,
+      })
+    );
+
+    transaction.feePayer = program.provider.wallet.publicKey;
+    let blockHashInfo = await connection.getRecentBlockhash();
+
+    let blockhash = await blockHashInfo.blockhash;
+    transaction.recentBlockhash = blockhash;
+
+    let signed_tx = await program.provider.wallet.signTransaction(transaction);
+    console.log(new Date(), "sending transaction");
+    let signature = await connection.sendRawTransaction(signed_tx.serialize());
+    console.log(new Date(), "confirming transaction");
+    let tx = await connection.confirmTransaction(signature);
+
+    account_info = await connection.getAccountInfo(toKeypair.publicKey);
+    assert.equal(account_info.lamports, 50 * LAMPORTS_PER_SOL);
+  });
+
+  it("can create account of Size 10MiB from frontend without CPI", async () => {
+    let toKeypair = Keypair.generate();
+    let rent = await connection.getMinimumBalanceForRentExemption(
+      MAX_ALLOWED_ACCOUNT_SIZE
+    );
+    console.log(
+      "It will require ",
+      rent,
+      "lamports to create rent-exempt account"
+    );
+
+    let createTransaction = new Transaction();
+    createTransaction.add(
+      SystemProgram.createAccount({
+        fromPubkey: program.provider.wallet.publicKey,
+        newAccountPubkey: toKeypair.publicKey,
+        lamports: rent,
+        programId: program.programId,
+        space: MAX_ALLOWED_ACCOUNT_SIZE,
+      })
+    );
+
+    createTransaction.feePayer = program.provider.wallet.publicKey;
+    let newBlockHashInfo = await connection.getRecentBlockhash();
+    let newBlockhash = await newBlockHashInfo.blockhash;
+    createTransaction.recentBlockhash = newBlockhash;
+
+    let signedTx = await program.provider.wallet.signTransaction(
+      createTransaction
+    );
+
+    let toKeypairSignature = nacl.sign.detached(
+      signedTx.serializeMessage(),
+      toKeypair.secretKey
+    );
+
+    signedTx.addSignature(toKeypair.publicKey, toKeypairSignature as Buffer);
+
+    let isVerifiedSignature = signedTx.verifySignatures();
+    console.log(`The signatures were verifed: ${isVerifiedSignature}`);
+
+    let signature = await connection.sendRawTransaction(signedTx.serialize());
+    await connection.confirmTransaction(signature);
+
+    let account_info = await connection.getAccountInfo(toKeypair.publicKey);
+    assert.equal(account_info.data.length, MAX_ALLOWED_ACCOUNT_SIZE);
+  });
+
+  it("can not create account of Size greater than 10MB from frontend without CPI", async () => {
+    let toKeypair = Keypair.generate();
+    let accountSize = MAX_ALLOWED_ACCOUNT_SIZE + 1;
+    let rent = await connection.getMinimumBalanceForRentExemption(accountSize);
+    console.log(
+      "It will require ",
+      rent,
+      "lamports to create rent-exempt account"
+    );
+
+    let createTransaction = new Transaction();
+    createTransaction.add(
+      SystemProgram.createAccount({
+        fromPubkey: program.provider.wallet.publicKey,
+        newAccountPubkey: toKeypair.publicKey,
+        lamports: rent,
+        programId: program.programId,
+        space: accountSize,
+      })
+    );
+
+    createTransaction.feePayer = program.provider.wallet.publicKey;
+    let newBlockHashInfo = await connection.getRecentBlockhash();
+    let newBlockhash = await newBlockHashInfo.blockhash;
+    createTransaction.recentBlockhash = newBlockhash;
+
+    let signedTx = await program.provider.wallet.signTransaction(
+      createTransaction
+    );
+
+    let toKeypairSignature = nacl.sign.detached(
+      signedTx.serializeMessage(),
+      toKeypair.secretKey
+    );
+
+    signedTx.addSignature(toKeypair.publicKey, toKeypairSignature as Buffer);
+
+    let isVerifiedSignature = signedTx.verifySignatures();
+    console.log(`The signatures were verifed: ${isVerifiedSignature}`);
+
+    try {
+      let signature = await connection.sendRawTransaction(signedTx.serialize());
+      await connection.confirmTransaction(signature);
+    } catch (error) {
+      // error log should contain size restriction message
+      assert.equal(
+        true,
+        error.logs.indexOf(
+          "Allocate: requested 10485761, max allowed 10485760"
+        ) > -1
+      );
+      return;
+    }
+
+    assert.fail(
+      "The instruction should have failed with a 281-character content."
     );
   });
 });
