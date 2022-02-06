@@ -40,13 +40,36 @@ pub mod solana_twitter {
 
         Ok(())
     }
+
+    pub fn delete_tweet(ctx: Context<DeleteTweet>) -> ProgramResult {
+        let tweet_account: &AccountInfo = &ctx.accounts.account;
+        let signer: &Signer = &ctx.accounts.author;
+        msg!("Account Balance before: {}", **signer.lamports.borrow());
+        let lamports_to_return = **tweet_account.lamports.borrow();
+
+        **tweet_account.lamports.borrow_mut() -= lamports_to_return;
+        **signer.lamports.borrow_mut() += lamports_to_return;
+
+        msg!("Account Balance after: {}", **signer.lamports.borrow());
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
 #[instruction(space_required: u32)]
 pub struct SendTweet<'info> {
-    #[account(init, payer=author, space= Tweet::TWEET_BAGGAGE + space_required as usize)]
+    #[account(init_if_needed, payer=author, space= Tweet::TWEET_BAGGAGE + space_required as usize)]
     pub tweet: Account<'info, Tweet>,
+    #[account(mut)]
+    pub author: Signer<'info>,
+    #[account(address = system_program::ID)]
+    pub system_program: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteTweet<'info> {
+    #[account(mut)]
+    pub account: AccountInfo<'info>,
     #[account(mut)]
     pub author: Signer<'info>,
     #[account(address = system_program::ID)]
