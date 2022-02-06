@@ -13,13 +13,12 @@ import {
 } from "@solana/web3.js";
 import { sha256 } from "js-sha256";
 
-describe("solana-twitter", () => {
+describe("#01 - solana-twitter tweet tests", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.Provider.env());
   // max account size created is capped at 10240
   // because the account is being created in anchor by
   // a CPI call which has realloc limit 10240 bytes.
-  const MAX_ALLOWED_ACCOUNT_SIZE = 10 * 1024 * 1024;
   const MAX_ALLOWED_ACCOUNT_SIZE_VIA_CPI = 10 * 1024;
   const TWEET_BAGGAGE_SIZE = 248;
 
@@ -56,7 +55,6 @@ describe("solana-twitter", () => {
 
     //fetch account details of newly created tweet
     const tweetAccount = await program.account.tweet.fetch(keypair.publicKey);
-    console.log(tweetAccount);
 
     // Ensure it has the right data.
     assert.equal(
@@ -326,143 +324,6 @@ describe("solana-twitter", () => {
       tweetAccounts.every((tweetAccount) => {
         return tweetAccount.account.topic === "Bharat";
       })
-    );
-  });
-
-  it("Transfer 50 SOL to another account", async () => {
-    let toKeypair = Keypair.generate();
-    let transaction = new Transaction();
-
-    let account_info = await connection.getAccountInfo(toKeypair.publicKey);
-
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: program.provider.wallet.publicKey,
-        toPubkey: toKeypair.publicKey,
-        lamports: 50 * LAMPORTS_PER_SOL,
-      })
-    );
-
-    transaction.feePayer = program.provider.wallet.publicKey;
-    let blockHashInfo = await connection.getRecentBlockhash();
-
-    let blockhash = await blockHashInfo.blockhash;
-    transaction.recentBlockhash = blockhash;
-
-    let signed_tx = await program.provider.wallet.signTransaction(transaction);
-    console.log(new Date(), "sending transaction");
-    let signature = await connection.sendRawTransaction(signed_tx.serialize());
-    console.log(new Date(), "confirming transaction");
-    let tx = await connection.confirmTransaction(signature);
-
-    account_info = await connection.getAccountInfo(toKeypair.publicKey);
-    assert.equal(account_info.lamports, 50 * LAMPORTS_PER_SOL);
-  });
-
-  it("can create account of Size 10MiB from frontend without CPI", async () => {
-    let toKeypair = Keypair.generate();
-    let rent = await connection.getMinimumBalanceForRentExemption(
-      MAX_ALLOWED_ACCOUNT_SIZE
-    );
-    console.log(
-      "It will require ",
-      rent,
-      "lamports to create rent-exempt account"
-    );
-
-    let createTransaction = new Transaction();
-    createTransaction.add(
-      SystemProgram.createAccount({
-        fromPubkey: program.provider.wallet.publicKey,
-        newAccountPubkey: toKeypair.publicKey,
-        lamports: rent,
-        programId: program.programId,
-        space: MAX_ALLOWED_ACCOUNT_SIZE,
-      })
-    );
-
-    createTransaction.feePayer = program.provider.wallet.publicKey;
-    let newBlockHashInfo = await connection.getRecentBlockhash();
-    let newBlockhash = await newBlockHashInfo.blockhash;
-    createTransaction.recentBlockhash = newBlockhash;
-
-    let signedTx = await program.provider.wallet.signTransaction(
-      createTransaction
-    );
-
-    let toKeypairSignature = nacl.sign.detached(
-      signedTx.serializeMessage(),
-      toKeypair.secretKey
-    );
-
-    signedTx.addSignature(toKeypair.publicKey, toKeypairSignature as Buffer);
-
-    let isVerifiedSignature = signedTx.verifySignatures();
-    console.log(`The signatures were verifed: ${isVerifiedSignature}`);
-
-    let signature = await connection.sendRawTransaction(signedTx.serialize());
-    await connection.confirmTransaction(signature);
-
-    let account_info = await connection.getAccountInfo(toKeypair.publicKey);
-    assert.equal(account_info.data.length, MAX_ALLOWED_ACCOUNT_SIZE);
-  });
-
-  it("can not create account of Size greater than 10MB from frontend without CPI", async () => {
-    let toKeypair = Keypair.generate();
-    let accountSize = MAX_ALLOWED_ACCOUNT_SIZE + 1;
-    let rent = await connection.getMinimumBalanceForRentExemption(accountSize);
-    console.log(
-      "It will require ",
-      rent,
-      "lamports to create rent-exempt account"
-    );
-
-    let createTransaction = new Transaction();
-    createTransaction.add(
-      SystemProgram.createAccount({
-        fromPubkey: program.provider.wallet.publicKey,
-        newAccountPubkey: toKeypair.publicKey,
-        lamports: rent,
-        programId: program.programId,
-        space: accountSize,
-      })
-    );
-
-    createTransaction.feePayer = program.provider.wallet.publicKey;
-    let newBlockHashInfo = await connection.getRecentBlockhash();
-    let newBlockhash = await newBlockHashInfo.blockhash;
-    createTransaction.recentBlockhash = newBlockhash;
-
-    let signedTx = await program.provider.wallet.signTransaction(
-      createTransaction
-    );
-
-    let toKeypairSignature = nacl.sign.detached(
-      signedTx.serializeMessage(),
-      toKeypair.secretKey
-    );
-
-    signedTx.addSignature(toKeypair.publicKey, toKeypairSignature as Buffer);
-
-    let isVerifiedSignature = signedTx.verifySignatures();
-    console.log(`The signatures were verifed: ${isVerifiedSignature}`);
-
-    try {
-      let signature = await connection.sendRawTransaction(signedTx.serialize());
-      await connection.confirmTransaction(signature);
-    } catch (error) {
-      // error log should contain size restriction message
-      assert.equal(
-        true,
-        error.logs.indexOf(
-          "Allocate: requested 10485761, max allowed 10485760"
-        ) > -1
-      );
-      return;
-    }
-
-    assert.fail(
-      "The instruction should have failed with a 281-character content."
     );
   });
 });
