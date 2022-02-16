@@ -14,23 +14,22 @@ import {
   PublicKey,
 } from "@solana/web3.js";
 import { sha256 } from "js-sha256";
+import { min } from "bn.js";
 
 describe("#03 - solana-twitter token experiments", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.Provider.env());
-  // max account size allowed is 10 MiB
-  const MAX_ALLOWED_ACCOUNT_SIZE = 10 * 1024 * 1024;
   const program = anchor.workspace.SolanaTwitter as Program<SolanaTwitter>;
 
   const connection = new Connection(" http://localhost:8899");
 
-  it("Get token account balance", async () => {
+  it("create new token", async () => {
     let mint = anchor.web3.Keypair.generate();
 
-    let tx = new Transaction().add(
+    let createTokenTx = new Transaction().add(
       // create mint account
       SystemProgram.createAccount({
-        fromPubkey: program..publicKey,
+        fromPubkey: program.provider.wallet.publicKey,
         newAccountPubkey: mint.publicKey,
         space: MintLayout.span,
         lamports: await Token.getMinBalanceRentForExemptMint(connection),
@@ -40,101 +39,44 @@ describe("#03 - solana-twitter token experiments", () => {
       Token.createInitMintInstruction(
         TOKEN_PROGRAM_ID, // always TOKEN_PROGRAM_ID
         mint.publicKey, // mint pubkey
-        8, // decimals
-        alice.publicKey, // mint authority
-        alice.publicKey // freeze authority (if you don't need it, you can set `null`)
+        16, // decimals
+        program.provider.wallet.publicKey, // mint authority
+        program.provider.wallet.publicKey // freeze authority (if you don't need it, you can set `null`)
       )
     );
 
-    // calculate rent
-    let rent = await connection.getMinimumBalanceForRentExemption(
-      MAX_ALLOWED_ACCOUNT_SIZE
-    );
-
-    // Derive the address (public key) of a greeting account from the program so that it's easy to find later.
-    const TWEETING_SEED = "tweet";
-    let tweetPubKey = await PublicKey.createWithSeed(
-      program.provider.wallet.publicKey,
-      TWEETING_SEED,
-      program.programId
-    );
-    console.log("account address: ", tweetPubKey.toBase58());
-
-    // create new transaction for creating account
-    let createTransaction = new Transaction();
-
-    // add create account instruction
-    createTransaction.add(
-      SystemProgram.createAccountWithSeed({
-        fromPubkey: program.provider.wallet.publicKey,
-        basePubkey: program.provider.wallet.publicKey,
-        newAccountPubkey: tweetPubKey,
-        seed: TWEETING_SEED,
-        lamports: rent,
-        programId: program.programId,
-        space: MAX_ALLOWED_ACCOUNT_SIZE,
-      })
-    );
     // set transaction fee payers
-    createTransaction.feePayer = program.provider.wallet.publicKey;
+    createTokenTx.feePayer = program.provider.wallet.publicKey;
     // set recent block hash
-    let newBlockHashInfo = await connection.getRecentBlockhash();
-    let newBlockhash = await newBlockHashInfo.blockhash;
-    createTransaction.recentBlockhash = newBlockhash;
+    let blockHashInfoForToken = await connection.getRecentBlockhash();
+    let blockHashForToken = await blockHashInfoForToken.blockhash;
+    createTokenTx.recentBlockhash = blockHashForToken;
+
+    let mintKeypairSignature = nacl.sign.detached(
+      createTokenTx.serializeMessage(),
+      mint.secretKey
+    );
+
+    createTokenTx.addSignature(mint.publicKey, mintKeypairSignature as Buffer);
 
     // sign transaction
-    let signedTx = await program.provider.wallet.signTransaction(
-      createTransaction
+    let createTokenSignedTx = await program.provider.wallet.signTransaction(
+      createTokenTx
     );
 
     // verify signature
-    let isVerifiedSignature = signedTx.verifySignatures();
-    console.log(`The signatures were verifed: ${isVerifiedSignature}`);
+    let areSignatureValidForCreateTokenTx =
+      createTokenSignedTx.verifySignatures();
+    console.log(
+      `The signatures for create New Token were verifed: ${areSignatureValidForCreateTokenTx}`
+    );
 
     // send transaction
-    let signature = await connection.sendRawTransaction(signedTx.serialize());
-    await connection.confirmTransaction(signature);
-
-    let tweet_account = await connection.getAccountInfo(
-      tweetPubKey,
-      "confirmed"
+    let createTokenSig = await connection.sendRawTransaction(
+      createTokenSignedTx.serialize()
     );
-    let my_wallet = await connection.getAccountInfo(
-      program.provider.wallet.publicKey,
-      "confirmed"
-    );
+    await connection.confirmTransaction(createTokenSig);
 
-    console.log(
-      "Before: tweet_account balance: ",
-      tweet_account.lamports / LAMPORTS_PER_SOL,
-      "wallet balance: ",
-      my_wallet.lamports / LAMPORTS_PER_SOL
-    );
-    assert.equal(tweet_account.data.length, MAX_ALLOWED_ACCOUNT_SIZE);
-
-    const tx = await program.rpc.deleteTweet({
-      accounts: {
-        account: tweetPubKey,
-        author: program.provider.wallet.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-    });
-    console.log("tx info: ", tx);
-
-    await new Promise((r) => setTimeout(r, 1000));
-
-    tweet_account = await connection.getAccountInfo(tweetPubKey, "confirmed");
-    my_wallet = await connection.getAccountInfo(
-      program.provider.wallet.publicKey,
-      "confirmed"
-    );
-
-    // make sure account has been deleted
-    console.log(
-      "After: my wallet balance: ",
-      my_wallet.lamports / LAMPORTS_PER_SOL
-    );
-
-    assert.equal(tweet_account, null);
+    console.log(`New token ${mint.publicKey} created successfully`);
   });
 });

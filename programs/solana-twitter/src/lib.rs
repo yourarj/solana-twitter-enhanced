@@ -6,10 +6,7 @@ declare_id!("DheWr3dFgW3D2y6RL1CaWxG33Hnp9kvpoJXEedseVpLu");
 #[program]
 pub mod solana_twitter {
 
-    use anchor_spl::{
-        associated_token::{get_associated_token_address, AssociatedToken},
-        token::{burn, Token, TokenAccount, ID},
-    };
+    use anchor_spl::{associated_token::get_associated_token_address, token::TokenAccount};
 
     use super::*;
     pub fn send_tweet(
