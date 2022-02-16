@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::system_program;
+use anchor_spl::token::{Mint, TokenAccount};
 
 declare_id!("DheWr3dFgW3D2y6RL1CaWxG33Hnp9kvpoJXEedseVpLu");
 
@@ -57,15 +58,25 @@ pub mod solana_twitter {
     }
 
     pub fn check_n_transfer_balance(ctx: Context<TokenTransfer>) -> ProgramResult {
-        let account: &AccountInfo = &ctx.accounts.account;
+        let _account: &Account<Mint> = &ctx.accounts.account;
+        let token_account: &Account<TokenAccount> = &ctx.accounts.token_account;
+
         let signer: &AccountInfo = &ctx.accounts.author.as_ref();
-        get_associated_token_address(signer.key, account.key);
 
-        let data = &mut &**account.data.borrow_mut();
+        // check if signer is the owner of token account
+        msg!("provided token account doesn't belong to signer");
+        if &token_account.owner != signer.key {
+            return Err(ErrorCode::IncorrectTokenOwner.into());
+        }
 
-        let tok_acc = *TokenAccount::try_deserialize(data)?;
+        // check if signer has the minimum token balance
+        msg!("token balance is {}", token_account.amount);
+        if token_account.amount < 1000 {
+            return Err(ErrorCode::InsufficientTokenBalance.into());
+        }
+        let _user_token_acc_pubkey = get_associated_token_address(signer.key, &_account.key());
 
-        msg!("Token account debug: {:?}", tok_acc);
+        msg!("Token account debug: {:?}", token_account.to_account_info());
         Ok(())
     }
 }
@@ -95,9 +106,11 @@ pub struct DeleteTweet<'info> {
 pub struct TokenTransfer<'info> {
     // this field account is for testing  purpose only
     // TODO need to remove it in final stage
-    #[account(mut)]
-    pub account: AccountInfo<'info>,
-    #[account(mut)]
+    // #[account(mut)]
+    pub account: Account<'info, Mint>,
+    // #[account(mut)]
+    pub token_account: Account<'info, TokenAccount>,
+    // #[account(mut)]
     pub author: Signer<'info>,
     #[account(address = system_program::ID)]
     pub system_program: AccountInfo<'info>,
@@ -136,4 +149,8 @@ pub enum ErrorCode {
     ContentTooLong,
     #[msg("Account size is bigger than max allowed 10,000,000 bytes")]
     AccountSizeTooLarge,
+    #[msg("Account doesn't meet expected token balance requirement")]
+    InsufficientTokenBalance,
+    #[msg("Transaction signer is not owner of given tokens")]
+    IncorrectTokenOwner,
 }
