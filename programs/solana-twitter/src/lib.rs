@@ -6,6 +6,11 @@ declare_id!("DheWr3dFgW3D2y6RL1CaWxG33Hnp9kvpoJXEedseVpLu");
 #[program]
 pub mod solana_twitter {
 
+    use anchor_spl::{
+        associated_token::{get_associated_token_address, AssociatedToken},
+        token::{burn, Token, TokenAccount, ID},
+    };
+
     use super::*;
     pub fn send_tweet(
         ctx: Context<SendTweet>,
@@ -53,12 +58,25 @@ pub mod solana_twitter {
         msg!("Account Balance after: {}", **signer.lamports.borrow());
         Ok(())
     }
+
+    pub fn check_n_transfer_balance(ctx: Context<TokenTransfer>) -> ProgramResult {
+        let account: &AccountInfo = &ctx.accounts.account;
+        let signer: &AccountInfo = &ctx.accounts.author.as_ref();
+        get_associated_token_address(signer.key, account.key);
+
+        let data = &mut &**account.data.borrow_mut();
+
+        let tok_acc = *TokenAccount::try_deserialize(data)?;
+
+        msg!("Token account debug: {:?}", tok_acc);
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
 #[instruction(space_required: u32)]
 pub struct SendTweet<'info> {
-    #[account(init_if_needed, payer=author, space= Tweet::TWEET_BAGGAGE + space_required as usize)]
+    #[account(init, payer=author, space= Tweet::TWEET_BAGGAGE + space_required as usize)]
     pub tweet: Account<'info, Tweet>,
     #[account(mut)]
     pub author: Signer<'info>,
@@ -68,6 +86,18 @@ pub struct SendTweet<'info> {
 
 #[derive(Accounts)]
 pub struct DeleteTweet<'info> {
+    #[account(mut)]
+    pub account: AccountInfo<'info>,
+    #[account(mut)]
+    pub author: Signer<'info>,
+    #[account(address = system_program::ID)]
+    pub system_program: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct TokenTransfer<'info> {
+    // this field account is for testing  purpose only
+    // TODO need to remove it in final stage
     #[account(mut)]
     pub account: AccountInfo<'info>,
     #[account(mut)]
