@@ -24,7 +24,7 @@ describe("#02 - solana-twitter account experiments", () => {
   const connection = new Connection(" http://localhost:8899");
   const localWallet = anchor.AnchorProvider.local().wallet;
 
-  xit("Transfer 50 SOL to another account", async () => {
+  it("Transfer 50 SOL to another account", async () => {
     let toKeypair = Keypair.generate();
     let transaction = new Transaction();
 
@@ -52,7 +52,7 @@ describe("#02 - solana-twitter account experiments", () => {
     assert.equal(account_info.lamports, 50 * LAMPORTS_PER_SOL);
   });
 
-  xit("can create account of Size 10MiB from frontend without CPI", async () => {
+  it("can create account of Size 10MiB from frontend without CPI", async () => {
     let toKeypair = Keypair.generate();
     let rent = await connection.getMinimumBalanceForRentExemption(
       MAX_ALLOWED_ACCOUNT_SIZE
@@ -98,7 +98,7 @@ describe("#02 - solana-twitter account experiments", () => {
     assert.equal(account_info.data.length, MAX_ALLOWED_ACCOUNT_SIZE);
   });
 
-  xit("can not create account of Size greater than 10MB from frontend without CPI", async () => {
+  it("can not create account of Size greater than 10MB from frontend without CPI", async () => {
     let toKeypair = Keypair.generate();
     let accountSize = MAX_ALLOWED_ACCOUNT_SIZE + 1;
     let rent = await connection.getMinimumBalanceForRentExemption(accountSize);
@@ -155,7 +155,7 @@ describe("#02 - solana-twitter account experiments", () => {
     );
   });
 
-  xit("Get program accounts by Program ID", async () => {
+  it("Get program accounts by Program ID", async () => {
     let accounts = await connection.getProgramAccounts(
       program.programId,
       "confirmed"
@@ -175,7 +175,7 @@ describe("#02 - solana-twitter account experiments", () => {
     }
   });
 
-  it("Can create and close accountwithSeed", async () => {
+  xit("Can create and close accountwithSeed", async () => {
     // calculate rent
     let rent = await connection.getMinimumBalanceForRentExemption(
       MAX_ALLOWED_ACCOUNT_SIZE
@@ -239,13 +239,14 @@ describe("#02 - solana-twitter account experiments", () => {
     );
     assert.equal(tweet_account.data.length, MAX_ALLOWED_ACCOUNT_SIZE);
 
-    const tx = await program.rpc.deleteTweet({
-      accounts: {
+    const tx = await program.methods
+      .deleteTweet()
+      .accounts({
         account: tweetPubKey,
         author: localWallet.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId,
-      },
-    });
+      })
+      .rpc();
     console.log("tx info: ", tx);
 
     await new Promise((r) => setTimeout(r, 1000));
