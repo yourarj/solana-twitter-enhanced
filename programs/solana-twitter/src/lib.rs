@@ -6,6 +6,8 @@ declare_id!("DheWr3dFgW3D2y6RL1CaWxG33Hnp9kvpoJXEedseVpLu");
 #[program]
 pub mod solana_twitter {
 
+    use anchor_lang::solana_program::entrypoint::ProgramResult;
+
     use super::*;
     pub fn send_tweet(
         ctx: Context<SendTweet>,
@@ -42,7 +44,7 @@ pub mod solana_twitter {
     }
 
     pub fn delete_tweet(ctx: Context<DeleteTweet>) -> ProgramResult {
-        let tweet_account: &AccountInfo = &ctx.accounts.account;
+        let tweet_account = &ctx.accounts.account.to_account_info();
         let signer: &Signer = &ctx.accounts.author;
         msg!("Account Balance before: {}", **signer.lamports.borrow());
         let lamports_to_return = **tweet_account.lamports.borrow();
@@ -63,17 +65,17 @@ pub struct SendTweet<'info> {
     #[account(mut)]
     pub author: Signer<'info>,
     #[account(address = system_program::ID)]
-    pub system_program: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct DeleteTweet<'info> {
     #[account(mut)]
-    pub account: AccountInfo<'info>,
+    pub account: Account<'info, Tweet>,
     #[account(mut)]
     pub author: Signer<'info>,
     #[account(address = system_program::ID)]
-    pub system_program: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 // 1. Define the structure of the Tweet account.
@@ -101,7 +103,7 @@ impl Tweet {
         + TIMESTAMP_LENGTH; // Timestamp.
 }
 
-#[error]
+#[error_code]
 pub enum ErrorCode {
     #[msg("The provided topic should be 50 characters long maximum.")]
     TopicTooLong,
