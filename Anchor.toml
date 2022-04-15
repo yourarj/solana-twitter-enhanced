@@ -1,3 +1,5 @@
+[features]
+seeds = false
 [programs.localnet]
 solana_twitter = "DheWr3dFgW3D2y6RL1CaWxG33Hnp9kvpoJXEedseVpLu"
 
@@ -10,4 +12,6 @@ wallet = "/home/awesome/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
-my-custom-script = "echo 'Hello world!'"
+
+[test]
+startup_wait = 10_000

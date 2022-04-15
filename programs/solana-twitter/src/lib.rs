@@ -12,23 +12,23 @@ pub mod solana_twitter {
         space_required: u32,
         topic: String,
         content: String,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let tweet_account: &mut Account<Tweet> = &mut ctx.accounts.tweet;
 
         msg!("Requested space: {}", space_required);
-        if space_required > 10 * 1000 * 1000 {
-            return Err(ErrorCode::AccountSizeTooLarge.into());
-        }
+        require!(
+            space_required < 10 * 1000 * 1000,
+            ErrorCode::AccountSizeTooLarge
+        );
 
-        msg!("Topic length {}", tweet_account.topic.len());
-        if topic.len() > MAX_TOPIC_LENGTH {
-            return Err(ErrorCode::TopicTooLong.into());
-        }
+        msg!("Topic length {}", topic.len());
+        require!(topic.len() < MAX_TOPIC_LENGTH, ErrorCode::TopicTooLong);
 
-        msg!("Content length {}", tweet_account.content.len());
-        if content.len() > MAX_CONTENT_LENGTH {
-            return Err(ErrorCode::ContentTooLong.into());
-        }
+        msg!("Content length {}", content.len());
+        require!(
+            content.len() < MAX_CONTENT_LENGTH,
+            ErrorCode::ContentTooLong
+        );
 
         let tweet_author: &Signer = &ctx.accounts.author;
         let clock: Clock = Clock::get().unwrap();
@@ -41,8 +41,8 @@ pub mod solana_twitter {
         Ok(())
     }
 
-    pub fn delete_tweet(ctx: Context<DeleteTweet>) -> ProgramResult {
-        let tweet_account: &AccountInfo = &ctx.accounts.account;
+    pub fn delete_tweet(ctx: Context<DeleteTweet>) -> Result<()> {
+        let tweet_account = &ctx.accounts.account.to_account_info();
         let signer: &Signer = &ctx.accounts.author;
         msg!("Account Balance before: {}", **signer.lamports.borrow());
         let lamports_to_return = **tweet_account.lamports.borrow();
@@ -58,22 +58,22 @@ pub mod solana_twitter {
 #[derive(Accounts)]
 #[instruction(space_required: u32)]
 pub struct SendTweet<'info> {
-    #[account(init_if_needed, payer=author, space= Tweet::TWEET_BAGGAGE + space_required as usize)]
+    #[account(init, payer=author, space= Tweet::TWEET_BAGGAGE + space_required as usize)]
     pub tweet: Account<'info, Tweet>,
     #[account(mut)]
     pub author: Signer<'info>,
     #[account(address = system_program::ID)]
-    pub system_program: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct DeleteTweet<'info> {
     #[account(mut)]
-    pub account: AccountInfo<'info>,
+    pub account: Account<'info, Tweet>,
     #[account(mut)]
     pub author: Signer<'info>,
     #[account(address = system_program::ID)]
-    pub system_program: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 // 1. Define the structure of the Tweet account.
@@ -101,7 +101,7 @@ impl Tweet {
         + TIMESTAMP_LENGTH; // Timestamp.
 }
 
-#[error]
+#[error_code]
 pub enum ErrorCode {
     #[msg("The provided topic should be 50 characters long maximum.")]
     TopicTooLong,

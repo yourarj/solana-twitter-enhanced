@@ -2,25 +2,26 @@ name: Rust
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Install AVM
-      run: cargo install --git https://github.com/project-serum/anchor avm --force
-    - name: Install Anchor
-      run: avm install 0.24.2 && avm use 0.24.2
-    - name: Build
-      run: anchor build
-    - name: Run tests
-      run: anchor test
+      - uses: actions/checkout@v3
+      - name: Install libudev-dev
+        run: sudo apt update && sudo apt install libudev-dev
+      - name: Install AVM
+        run: cargo install --git https://github.com/project-serum/anchor avm --force
+      - name: Install Anchor
+        run: avm install 0.24.2 && avm use 0.24.2
+      - name: Build
+        run: anchor build
+      - name: Run tests
+        run: anchor test
