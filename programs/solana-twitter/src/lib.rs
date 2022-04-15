@@ -21,12 +21,12 @@ pub mod solana_twitter {
             ErrorCode::AccountSizeTooLarge
         );
 
-        msg!("Topic length {}", tweet_account.topic.len());
+        msg!("Topic length {}", topic.len());
         require!(topic.len() < MAX_TOPIC_LENGTH, ErrorCode::TopicTooLong);
 
-        msg!("Content length {}", tweet_account.content.len());
+        msg!("Content length {}", content.len());
         require!(
-            content.len() > MAX_CONTENT_LENGTH,
+            content.len() < MAX_CONTENT_LENGTH,
             ErrorCode::ContentTooLong
         );
 
@@ -58,7 +58,7 @@ pub mod solana_twitter {
 #[derive(Accounts)]
 #[instruction(space_required: u32)]
 pub struct SendTweet<'info> {
-    // #[account(init_if_needed, payer=author, space= Tweet::TWEET_BAGGAGE + space_required as usize)]
+    #[account(init, payer=author, space= Tweet::TWEET_BAGGAGE + space_required as usize)]
     pub tweet: Account<'info, Tweet>,
     #[account(mut)]
     pub author: Signer<'info>,

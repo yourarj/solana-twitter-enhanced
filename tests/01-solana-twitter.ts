@@ -15,7 +15,7 @@ import { sha256 } from "js-sha256";
 
 describe("#01 - solana-twitter tweet tests", () => {
   // Configure the client to use the local cluster.
-  anchor.setProvider(anchor.Provider.env());
+  anchor.setProvider(anchor.AnchorProvider.env());
   // max account size created is capped at 10240
   // because the account is being created in anchor by
   // a CPI call which has realloc limit 10240 bytes.
@@ -35,22 +35,19 @@ describe("#01 - solana-twitter tweet tests", () => {
 
   const connection = new Connection(" http://localhost:8899");
   const tweetContent = "B".repeat(270);
+  const localWallet = anchor.AnchorProvider.local().wallet;
 
   it("Can send a new tweet", async () => {
     const keypair = anchor.web3.Keypair.generate();
-    const tx = await program.rpc.sendTweet(
-      MAX_ALLOWED_TWEET_BODY_SIZE,
-      "Bharat",
-      tweetContent,
-      {
-        accounts: {
-          tweet: keypair.publicKey,
-          author: program.provider.wallet.publicKey,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        },
-        signers: [keypair],
-      }
-    );
+    const tx = await program.methods
+      .sendTweet(MAX_ALLOWED_TWEET_BODY_SIZE, "Bharat", tweetContent)
+      .accounts({
+        tweet: keypair.publicKey,
+        author: localWallet.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([keypair])
+      .rpc();
     console.log("Your transaction signature", tx);
 
     //fetch account details of newly created tweet
@@ -59,7 +56,7 @@ describe("#01 - solana-twitter tweet tests", () => {
     // Ensure it has the right data.
     assert.equal(
       tweetAccount.author.toBase58(),
-      program.provider.wallet.publicKey.toBase58()
+      localWallet.publicKey.toBase58()
     );
     assert.equal(tweetAccount.topic, "Bharat");
     assert.equal(tweetAccount.content, tweetContent);
@@ -69,19 +66,19 @@ describe("#01 - solana-twitter tweet tests", () => {
   xit("Can send 100 tweets", async () => {
     for (let counter = 1; counter <= 100; counter++) {
       const keypair = anchor.web3.Keypair.generate();
-      const tx = await program.rpc.sendTweet(
-        MAX_ALLOWED_TWEET_BODY_SIZE,
-        "Bharat",
-        "Bharat is VishwaGuru. You can't move it around!",
-        {
-          accounts: {
-            tweet: keypair.publicKey,
-            author: program.provider.wallet.publicKey,
-            systemProgram: anchor.web3.SystemProgram.programId,
-          },
-          signers: [keypair],
-        }
-      );
+      const tx = await program.methods
+        .sendTweet(
+          MAX_ALLOWED_TWEET_BODY_SIZE,
+          "Bharat",
+          "Bharat is VishwaGuru. You can't move it around!"
+        )
+        .accounts({
+          tweet: keypair.publicKey,
+          author: localWallet.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([keypair])
+        .rpc();
 
       if (counter % 10 == 0) {
         console.log(new Date(), "Tweets sent: ", counter);
@@ -92,14 +89,15 @@ describe("#01 - solana-twitter tweet tests", () => {
   it("can send a new tweet without a topic", async () => {
     // Call the "SendTweet" instruction.
     const tweet = anchor.web3.Keypair.generate();
-    await program.rpc.sendTweet(MAX_ALLOWED_TWEET_BODY_SIZE, "", tweetContent, {
-      accounts: {
+    await program.methods
+      .sendTweet(MAX_ALLOWED_TWEET_BODY_SIZE, "", tweetContent)
+      .accounts({
         tweet: tweet.publicKey,
-        author: program.provider.wallet.publicKey,
+        author: localWallet.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId,
-      },
-      signers: [tweet],
-    });
+      })
+      .signers([tweet])
+      .rpc();
 
     // Fetch the account details of the created tweet.
     const tweetAccount = await program.account.tweet.fetch(tweet.publicKey);
@@ -107,7 +105,7 @@ describe("#01 - solana-twitter tweet tests", () => {
     // Ensure it has the right data.
     assert.equal(
       tweetAccount.author.toBase58(),
-      program.provider.wallet.publicKey.toBase58()
+      localWallet.publicKey.toBase58()
     );
     assert.equal(tweetAccount.topic, "");
     assert.equal(tweetAccount.content, tweetContent);
@@ -126,19 +124,15 @@ describe("#01 - solana-twitter tweet tests", () => {
 
     // Call the "SendTweet" instruction on behalf of this other user.
     const tweet = anchor.web3.Keypair.generate();
-    await program.rpc.sendTweet(
-      MAX_ALLOWED_TWEET_BODY_SIZE,
-      "Bharat",
-      tweetContent,
-      {
-        accounts: {
-          tweet: tweet.publicKey,
-          author: otherUser.publicKey,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        },
-        signers: [otherUser, tweet],
-      }
-    );
+    await program.methods
+      .sendTweet(MAX_ALLOWED_TWEET_BODY_SIZE, "Bharat", tweetContent)
+      .accounts({
+        tweet: tweet.publicKey,
+        author: otherUser.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([otherUser, tweet])
+      .rpc();
 
     // Fetch the account details of the created tweet.
     const tweetAccount = await program.account.tweet.fetch(tweet.publicKey);
@@ -157,26 +151,26 @@ describe("#01 - solana-twitter tweet tests", () => {
     try {
       const tweet = anchor.web3.Keypair.generate();
       const topicWith51Chars = "B".repeat(51);
-      await program.rpc.sendTweet(
-        MAX_ALLOWED_TWEET_BODY_SIZE,
-        topicWith51Chars,
-        "Bharat will always be great!!!!",
-        {
-          accounts: {
-            tweet: tweet.publicKey,
-            author: program.provider.wallet.publicKey,
-            systemProgram: anchor.web3.SystemProgram.programId,
-          },
-          signers: [tweet],
-        }
-      );
+      await program.methods
+        .sendTweet(
+          MAX_ALLOWED_TWEET_BODY_SIZE,
+          topicWith51Chars,
+          "Bharat will always be great!!!!"
+        )
+        .accounts({
+          tweet: tweet.publicKey,
+          author: localWallet.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([tweet])
+        .rpc();
 
       //fetch account details of newly created tweet
       const tweetAccount = await program.account.tweet.fetch(tweet.publicKey);
       console.log(tweetAccount);
     } catch (error) {
       assert.equal(
-        error.msg,
+        error.error.errorMessage,
         "The provided topic should be 50 characters long maximum."
       );
       return;
@@ -191,22 +185,18 @@ describe("#01 - solana-twitter tweet tests", () => {
     try {
       const tweet = anchor.web3.Keypair.generate();
       const contentWith281Chars = "B".repeat(281);
-      await program.rpc.sendTweet(
-        MAX_ALLOWED_TWEET_BODY_SIZE,
-        "veganism",
-        contentWith281Chars,
-        {
-          accounts: {
-            tweet: tweet.publicKey,
-            author: program.provider.wallet.publicKey,
-            systemProgram: anchor.web3.SystemProgram.programId,
-          },
-          signers: [tweet],
-        }
-      );
+      await program.methods
+        .sendTweet(MAX_ALLOWED_TWEET_BODY_SIZE, "veganism", contentWith281Chars)
+        .accounts({
+          tweet: tweet.publicKey,
+          author: localWallet.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([tweet])
+        .rpc();
     } catch (error) {
       assert.equal(
-        error.msg,
+        error.error.errorMessage,
         "The provided content should be 280 characters long maximum."
       );
       return;
@@ -221,22 +211,18 @@ describe("#01 - solana-twitter tweet tests", () => {
     try {
       const tweet = anchor.web3.Keypair.generate();
       const contentWith281Chars = "B".repeat(281);
-      await program.rpc.sendTweet(
-        MAX_ALLOWED_TWEET_BODY_SIZE,
-        "veganism",
-        contentWith281Chars,
-        {
-          accounts: {
-            tweet: tweet.publicKey,
-            author: program.provider.wallet.publicKey,
-            systemProgram: anchor.web3.SystemProgram.programId,
-          },
-          signers: [tweet],
-        }
-      );
+      await program.methods
+        .sendTweet(MAX_ALLOWED_TWEET_BODY_SIZE, "veganism", contentWith281Chars)
+        .accounts({
+          tweet: tweet.publicKey,
+          author: localWallet.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([tweet])
+        .rpc();
     } catch (error) {
       assert.equal(
-        error.msg,
+        error.error.errorMessage,
         "The provided content should be 280 characters long maximum."
       );
       return;
@@ -285,7 +271,7 @@ describe("#01 - solana-twitter tweet tests", () => {
   });
 
   it("can filter tweets by author", async () => {
-    const authorPublicKey = program.provider.wallet.publicKey;
+    const authorPublicKey = localWallet.publicKey;
     const tweetAccounts = await program.account.tweet.all([
       {
         memcmp: {

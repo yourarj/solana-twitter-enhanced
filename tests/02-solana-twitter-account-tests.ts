@@ -16,12 +16,13 @@ import { sha256 } from "js-sha256";
 
 describe("#02 - solana-twitter account experiments", () => {
   // Configure the client to use the local cluster.
-  anchor.setProvider(anchor.Provider.env());
+  anchor.setProvider(anchor.AnchorProvider.env());
   // max account size allowed is 10 MiB
   const MAX_ALLOWED_ACCOUNT_SIZE = 10 * 1024 * 1024;
   const program = anchor.workspace.SolanaTwitter as Program<SolanaTwitter>;
 
   const connection = new Connection(" http://localhost:8899");
+  const localWallet = anchor.AnchorProvider.local().wallet;
 
   xit("Transfer 50 SOL to another account", async () => {
     let toKeypair = Keypair.generate();
@@ -29,19 +30,19 @@ describe("#02 - solana-twitter account experiments", () => {
 
     transaction.add(
       SystemProgram.transfer({
-        fromPubkey: program.provider.wallet.publicKey,
+        fromPubkey: localWallet.publicKey,
         toPubkey: toKeypair.publicKey,
         lamports: 50 * LAMPORTS_PER_SOL,
       })
     );
 
-    transaction.feePayer = program.provider.wallet.publicKey;
+    transaction.feePayer = localWallet.publicKey;
     let blockHashInfo = await connection.getRecentBlockhash();
 
     let blockhash = await blockHashInfo.blockhash;
     transaction.recentBlockhash = blockhash;
 
-    let signed_tx = await program.provider.wallet.signTransaction(transaction);
+    let signed_tx = await localWallet.signTransaction(transaction);
     console.log(new Date(), "sending transaction");
     let signature = await connection.sendRawTransaction(signed_tx.serialize());
     console.log(new Date(), "confirming transaction");
@@ -65,7 +66,7 @@ describe("#02 - solana-twitter account experiments", () => {
     let createTransaction = new Transaction();
     createTransaction.add(
       SystemProgram.createAccount({
-        fromPubkey: program.provider.wallet.publicKey,
+        fromPubkey: localWallet.publicKey,
         newAccountPubkey: toKeypair.publicKey,
         lamports: rent,
         programId: program.programId,
@@ -73,14 +74,12 @@ describe("#02 - solana-twitter account experiments", () => {
       })
     );
 
-    createTransaction.feePayer = program.provider.wallet.publicKey;
+    createTransaction.feePayer = localWallet.publicKey;
     let newBlockHashInfo = await connection.getRecentBlockhash();
     let newBlockhash = await newBlockHashInfo.blockhash;
     createTransaction.recentBlockhash = newBlockhash;
 
-    let signedTx = await program.provider.wallet.signTransaction(
-      createTransaction
-    );
+    let signedTx = await localWallet.signTransaction(createTransaction);
 
     let toKeypairSignature = nacl.sign.detached(
       signedTx.serializeMessage(),
@@ -112,7 +111,7 @@ describe("#02 - solana-twitter account experiments", () => {
     let createTransaction = new Transaction();
     createTransaction.add(
       SystemProgram.createAccount({
-        fromPubkey: program.provider.wallet.publicKey,
+        fromPubkey: localWallet.publicKey,
         newAccountPubkey: toKeypair.publicKey,
         lamports: rent,
         programId: program.programId,
@@ -120,14 +119,12 @@ describe("#02 - solana-twitter account experiments", () => {
       })
     );
 
-    createTransaction.feePayer = program.provider.wallet.publicKey;
+    createTransaction.feePayer = localWallet.publicKey;
     let newBlockHashInfo = await connection.getRecentBlockhash();
     let newBlockhash = await newBlockHashInfo.blockhash;
     createTransaction.recentBlockhash = newBlockhash;
 
-    let signedTx = await program.provider.wallet.signTransaction(
-      createTransaction
-    );
+    let signedTx = await localWallet.signTransaction(createTransaction);
 
     let toKeypairSignature = nacl.sign.detached(
       signedTx.serializeMessage(),
@@ -187,7 +184,7 @@ describe("#02 - solana-twitter account experiments", () => {
     // Derive the address (public key) of a greeting account from the program so that it's easy to find later.
     const TWEETING_SEED = "tweet";
     let tweetPubKey = await PublicKey.createWithSeed(
-      program.provider.wallet.publicKey,
+      localWallet.publicKey,
       TWEETING_SEED,
       program.programId
     );
@@ -198,8 +195,8 @@ describe("#02 - solana-twitter account experiments", () => {
     // add create account instruction
     createTransaction.add(
       SystemProgram.createAccountWithSeed({
-        fromPubkey: program.provider.wallet.publicKey,
-        basePubkey: program.provider.wallet.publicKey,
+        fromPubkey: localWallet.publicKey,
+        basePubkey: localWallet.publicKey,
         newAccountPubkey: tweetPubKey,
         seed: TWEETING_SEED,
         lamports: rent,
@@ -208,16 +205,14 @@ describe("#02 - solana-twitter account experiments", () => {
       })
     );
     // set transaction fee payers
-    createTransaction.feePayer = program.provider.wallet.publicKey;
+    createTransaction.feePayer = localWallet.publicKey;
     // set recent block hash
     let newBlockHashInfo = await connection.getRecentBlockhash();
     let newBlockhash = await newBlockHashInfo.blockhash;
     createTransaction.recentBlockhash = newBlockhash;
 
     // sign transaction
-    let signedTx = await program.provider.wallet.signTransaction(
-      createTransaction
-    );
+    let signedTx = await localWallet.signTransaction(createTransaction);
 
     // verify signature
     let isVerifiedSignature = signedTx.verifySignatures();
@@ -232,7 +227,7 @@ describe("#02 - solana-twitter account experiments", () => {
       "confirmed"
     );
     let my_wallet = await connection.getAccountInfo(
-      program.provider.wallet.publicKey,
+      localWallet.publicKey,
       "confirmed"
     );
 
@@ -247,7 +242,7 @@ describe("#02 - solana-twitter account experiments", () => {
     const tx = await program.rpc.deleteTweet({
       accounts: {
         account: tweetPubKey,
-        author: program.provider.wallet.publicKey,
+        author: localWallet.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId,
       },
     });
@@ -257,7 +252,7 @@ describe("#02 - solana-twitter account experiments", () => {
 
     tweet_account = await connection.getAccountInfo(tweetPubKey, "confirmed");
     my_wallet = await connection.getAccountInfo(
-      program.provider.wallet.publicKey,
+      localWallet.publicKey,
       "confirmed"
     );
 
