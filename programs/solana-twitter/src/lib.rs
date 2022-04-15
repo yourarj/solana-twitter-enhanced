@@ -58,7 +58,7 @@ pub mod solana_twitter {
 #[derive(Accounts)]
 #[instruction(space_required: u32)]
 pub struct SendTweet<'info> {
-    #[account(init_if_needed, payer=author, space= Tweet::TWEET_BAGGAGE + space_required as usize)]
+    #[account(init, payer=author, space= Tweet::TWEET_BAGGAGE + space_required as usize)]
     pub tweet: Account<'info, Tweet>,
     #[account(mut)]
     pub author: Signer<'info>,

@@ -175,6 +175,7 @@ describe("#02 - solana-twitter account experiments", () => {
     }
   });
 
+  // FIXME Check if this can be fixed (Good to have)
   xit("Can create and close accountwithSeed", async () => {
     // calculate rent
     let rent = await connection.getMinimumBalanceForRentExemption(
