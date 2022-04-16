@@ -19,6 +19,8 @@ jobs:
         run: sudo apt update && sudo apt install libudev-dev
       - name: Install solana
         run: sh -c "$(curl -sSfL https://release.solana.com/v1.10.8/install)"
+      - name: Install build-bpf
+        run: cargo install cargo-build-bpf
       - name: Install AVM
         run: cargo install --git https://github.com/project-serum/anchor avm --force
       - name: Install Anchor
