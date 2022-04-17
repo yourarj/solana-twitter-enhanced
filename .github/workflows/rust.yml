@@ -11,18 +11,12 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: projectserum-anchor-0.24.2
+    container: projectserum/build:v0.24.2
 
     steps:
       - uses: actions/checkout@v3
       - name: Install libudev-dev
-        run: sudo apt update && sudo apt install libudev-dev
-      - name: Install solana
-        run: sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
-      - name: Install AVM
-        run: cargo install --git https://github.com/project-serum/anchor avm --force
-      - name: Install Anchor
-        run: avm install 0.24.2 && avm use 0.24.2
       - name: Build
         run: export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH" && anchor build
       - name: Run tests
