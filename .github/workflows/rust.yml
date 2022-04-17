@@ -16,7 +16,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Install libudev-dev
       - name: Build
         run: export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH" && anchor build
       - name: Run tests
