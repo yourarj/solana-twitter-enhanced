@@ -18,7 +18,7 @@ jobs:
       - name: Install libudev-dev
         run: sudo apt update && sudo apt install libudev-dev
       - name: Install solana
-        run: sh -c "$(curl -sSfL https://release.solana.com/v1.10.8/install)"
+        run: sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
       - name: Export solana path
         run: export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
       - name: Install AVM
