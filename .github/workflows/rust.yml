@@ -16,7 +16,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Set default toolchain
+        run: rustup default stable
       - name: Build
-        run: export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH" && anchor build
+        run: anchor build
       - name: Run tests
-        run: export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH" && anchor test
+        run: anchor test
