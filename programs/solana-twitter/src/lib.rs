@@ -7,8 +7,8 @@
 //! where users can freely open up and share
 //! whatever they want without the fear of sensorship
 //!
-//! @author: Arjun.
-//! contact: twitter.com/yourarj
+//! @author: Arjun.\
+//! @contact: <https://twitter.com/yourarj>
 
 pub mod constants;
 pub mod errors;
@@ -21,15 +21,13 @@ use instructions::send_tweet::*;
 
 declare_id!("DheWr3dFgW3D2y6RL1CaWxG33Hnp9kvpoJXEedseVpLu");
 
-/// ## program module
-///
-/// contains all extrinsic method to interact with smart contract
+/// all extrinsic methods available to interact with smart contract
 #[program]
 pub mod solana_twitter {
 
     use super::*;
 
-    /// ## Send tweet
+    /// Create new tweet acccount and send tweet
     ///
     /// Send the tweet method
     ///
@@ -46,7 +44,7 @@ pub mod solana_twitter {
         instructions::send_tweet::send_tweet(ctx, space_required, topic, content)
     }
 
-    /// ### Delete Tweet
+    /// Delete specified Tweet
     ///
     /// Delete the tweet specified by the account in request
     pub fn delete_tweet(ctx: Context<DeleteTweet>) -> Result<()> {

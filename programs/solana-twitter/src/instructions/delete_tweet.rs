@@ -1,7 +1,15 @@
+//! Delete Tweet Operation
+//! 
+//! facilitates deleting a tweet
+
 use crate::state::tweet::Tweet;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::system_program;
 
+/// ## delete tweet method
+/// 
+/// deletes the tweet account from blockchain an returns the rent to owner of account
+/// 
 pub fn delete_tweet(ctx: Context<DeleteTweet>) -> Result<()> {
     let tweet_account = &ctx.accounts.account.to_account_info();
     let signer: &Signer = &ctx.accounts.author;
@@ -15,6 +23,10 @@ pub fn delete_tweet(ctx: Context<DeleteTweet>) -> Result<()> {
     Ok(())
 }
 
+/// DeleteTweet struct
+/// 
+/// Hold metadata reqired to identify target tweet account \
+/// to be deleted
 #[derive(Accounts)]
 pub struct DeleteTweet<'info> {
     #[account(mut)]
