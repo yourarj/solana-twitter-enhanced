@@ -19,15 +19,11 @@ jobs:
         run: sudo apt update && sudo apt install libudev-dev
       - name: Install solana
         run: sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
-      - name: Export solana path
-        run: export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
-      - name: Install bpf
-        run: rustup toolchain install bpf
       - name: Install AVM
         run: cargo install --git https://github.com/project-serum/anchor avm --force
       - name: Install Anchor
         run: avm install 0.24.2 && avm use 0.24.2
       - name: Build
-        run: anchor build
+        run: export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH" && anchor build
       - name: Run tests
-        run: anchor test
+        run: export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH" && anchor test
