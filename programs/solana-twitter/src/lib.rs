@@ -7,7 +7,7 @@ use anchor_lang::prelude::*;
 use instructions::delete_tweet::*;
 use instructions::send_tweet::*;
 
-declare_id!("DheWr3dFgW3D2y6RL1CaWxG33Hnp9kvpoJXEedseVpLu");
+declare_id!("BTh1KPhZc3LLMkvqvKqyWyELo63f3MwPN1DHsVrMYqWb");
 
 #[program]
 pub mod solana_twitter {
