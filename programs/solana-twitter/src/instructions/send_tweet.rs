@@ -4,6 +4,14 @@ use crate::state::tweet::Tweet;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::system_program;
 
+/// ## Send tweet method
+///
+/// send tweet and persists it on the blockchain\
+/// method requires
+/// - space_required    - number bytes it expects to allocate (the account size)\
+/// - topic             - topic of the tweet
+/// - content           - content of the tweet (the tweet body)
+///
 pub fn send_tweet(
     ctx: Context<SendTweet>,
     space_required: u32,
@@ -38,6 +46,10 @@ pub fn send_tweet(
     Ok(())
 }
 
+/// SendTweet
+///
+/// struct holding data required to invoke the send tweet method
+///
 #[derive(Accounts)]
 #[instruction(space_required: u32)]
 pub struct SendTweet<'info> {
