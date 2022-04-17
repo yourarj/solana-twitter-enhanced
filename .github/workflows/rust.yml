@@ -11,7 +11,7 @@ env:
 
 jobs:
   build:
-    runs-on: projectserum-anchor-0.24.2
+    runs-on: ubuntu-latest
     container: projectserum/build:v0.24.2
 
     steps:
