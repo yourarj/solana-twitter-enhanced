@@ -21,6 +21,6 @@ jobs:
       - name: Build
         run: rustup default stable
       - name: Generate new keygen
-        run: solana-keygen new && solana config get
+        run: solana-keygen new && solana config set --url http:localhost:8899 && solana config get
       - name: Run tests
         run: anchor test
