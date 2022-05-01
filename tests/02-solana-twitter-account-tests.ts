@@ -21,7 +21,7 @@ describe("#02 - solana-twitter account experiments", () => {
   const MAX_ALLOWED_ACCOUNT_SIZE = 10 * 1024 * 1024;
   const program = anchor.workspace.SolanaTwitter as Program<SolanaTwitter>;
 
-  const connection = new Connection(" http://localhost:8899");
+  const connection = anchor.getProvider().connection;
   const localWallet = anchor.AnchorProvider.local().wallet;
 
   it("Transfer 50 SOL to another account", async () => {
@@ -92,7 +92,9 @@ describe("#02 - solana-twitter account experiments", () => {
     console.log(`The signatures were verifed: ${isVerifiedSignature}`);
 
     let signature = await connection.sendRawTransaction(signedTx.serialize());
-    await connection.confirmTransaction(signature);
+    const confirmOutput = await connection.confirmTransaction(signature);
+
+    console.log(new Date(), confirmOutput);
 
     let account_info = await connection.getAccountInfo(toKeypair.publicKey);
     assert.equal(account_info.data.length, MAX_ALLOWED_ACCOUNT_SIZE);

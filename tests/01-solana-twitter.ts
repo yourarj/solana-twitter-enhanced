@@ -33,7 +33,7 @@ describe("#01 - solana-twitter tweet tests", () => {
 
   const program = anchor.workspace.SolanaTwitter as Program<SolanaTwitter>;
 
-  const connection = new Connection(" http://localhost:8899");
+  const connection = anchor.getProvider().connection;
   const tweetContent = "B".repeat(270);
   const localWallet = anchor.AnchorProvider.local().wallet;
 
